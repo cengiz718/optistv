@@ -10,6 +10,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.optis.tvradyopro.model.Channel
 import okhttp3.OkHttpClient
@@ -69,7 +70,6 @@ object PlayerHolder {
         val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
             .setDefaultRequestProperties(headers)
 
-        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
         val mediaItem = MediaItem.Builder()
             .setUri(channel.streamUrl)
             .setMediaMetadata(
@@ -80,9 +80,19 @@ object PlayerHolder {
             )
             .build()
 
+        val lowerUrl = channel.streamUrl.lowercase()
+        val mediaSource = if (lowerUrl.contains(".m3u8") || lowerUrl.contains("hls") || lowerUrl.contains("workers.dev")) {
+            HlsMediaSource.Factory(dataSourceFactory)
+                .setAllowChunklessPreparation(true)
+                .createMediaSource(mediaItem)
+        } else {
+            DefaultMediaSourceFactory(dataSourceFactory)
+                .createMediaSource(mediaItem)
+        }
+
         val player = getOrCreatePlayer(appCtx)
         player.stop()
-        player.setMediaSource(mediaSourceFactory.createMediaSource(mediaItem))
+        player.setMediaSource(mediaSource)
         player.prepare()
         player.playWhenReady = true
     }
